@@ -19,15 +19,12 @@
       color: #0f172a;
       -webkit-tap-highlight-color: transparent;
     }
-    /* 文字サイズ切り替え制御 */
     body.font-normal { --base-scale: 1; }
     body.font-large { --base-scale: 1.125; }
     body.font-xlarge { --base-scale: 1.25; }
     .scalable-text { font-size: calc(0.875rem * var(--base-scale, 1)); line-height: calc(1.4rem * var(--base-scale, 1)); }
     .scalable-title { font-size: calc(1.05rem * var(--base-scale, 1)); }
     .scalable-table { font-size: calc(0.825rem * var(--base-scale, 1)); }
-
-    /* スクロールバー調整 */
     .no-scrollbar::-webkit-scrollbar { display: none; }
     .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
   </style>
@@ -79,15 +76,24 @@
 
     <main class="max-w-4xl mx-auto p-3 md:p-5 space-y-4">
 
-      <!-- APIキー設定パネル -->
-      <div id="apiKeySection" class="bg-white p-4 rounded-lg shadow-sm border border-slate-300 hidden">
-        <div class="flex justify-between items-center mb-2">
-          <label class="text-xs font-bold text-slate-700">システム連携キー設定 (API Key)</label>
+      <!-- APIキー＆モデル設定パネル -->
+      <div id="apiKeySection" class="bg-white p-4 rounded-lg shadow-sm border border-slate-300 hidden space-y-3">
+        <div class="flex justify-between items-center">
+          <label class="text-xs font-bold text-slate-700">システム連携設定 (API Key / 使用モデル)</label>
           <button onclick="clearHistory()" class="text-xs text-red-600 hover:underline">照会履歴を全消去</button>
         </div>
-        <div class="flex gap-2">
-          <input type="password" id="apiKeyInput" placeholder="APIキーを入力" class="flex-1 border border-slate-300 rounded px-3 py-2 text-sm font-mono focus:outline-none focus:border-blue-600">
-          <button onclick="saveApiKey()" class="bg-slate-900 text-white px-4 py-2 rounded text-xs font-bold hover:bg-slate-800">保存</button>
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-2">
+          <div>
+            <span class="block text-[11px] text-slate-500 mb-1">APIキー</span>
+            <input type="password" id="apiKeyInput" placeholder="AIzaSy..." class="w-full border border-slate-300 rounded px-3 py-2 text-sm font-mono focus:outline-none focus:border-blue-600">
+          </div>
+          <div>
+            <span class="block text-[11px] text-slate-500 mb-1">使用モデル名（エラー時は変更可能）</span>
+            <input type="text" id="modelNameInput" value="gemini-3.0-flash" placeholder="gemini-3.0-flash" class="w-full border border-slate-300 rounded px-3 py-2 text-sm font-mono focus:outline-none focus:border-blue-600">
+          </div>
+        </div>
+        <div class="flex justify-end">
+          <button onclick="saveApiKey()" class="bg-slate-900 text-white px-5 py-2 rounded text-xs font-bold hover:bg-slate-800">設定を保存</button>
         </div>
       </div>
 
@@ -107,12 +113,12 @@
         </div>
       </div>
 
-      <!-- 入力パネル（折りたたみ可能） -->
+      <!-- 入力パネル -->
       <div id="inputPanel" class="bg-white rounded-lg shadow-sm border border-slate-200 overflow-hidden">
         <div class="bg-slate-50 px-4 py-3 border-b border-slate-200 flex justify-between items-center">
           <div class="flex items-center space-x-2">
             <h2 class="text-xs font-bold text-slate-700 uppercase tracking-wider">対象製品 登録・スキャン</h2>
-            <span id="productCountBadge" class="bg-slate-200 text-slate-700 text-xs font-bold px-2 py-0.5 rounded">1製品</span>
+            <span id="productCountBadge" class="bg-slate-200 text-slate-700 text-xs font-bold px-2 py-0.5 rounded">2枠</span>
           </div>
           <div class="flex items-center space-x-2">
             <button onclick="startContinuousScan()" class="bg-blue-700 hover:bg-blue-800 text-white px-3 py-1.5 rounded text-xs font-bold flex items-center space-x-1.5 shadow-sm transition">
@@ -124,10 +130,8 @@
         </div>
 
         <div class="p-4 space-y-4">
-          <!-- 動的な商品入力リスト -->
           <div id="productInputsList" class="space-y-2.5"></div>
 
-          <!-- 製品枠追加ボタン -->
           <div class="flex justify-between items-center pt-1">
             <button onclick="addProductRow()" id="btnAddProduct" class="text-xs font-bold text-blue-700 hover:text-blue-900 flex items-center space-x-1 py-1.5 px-3 rounded border border-blue-200 bg-blue-50/50 hover:bg-blue-100/50 transition">
               <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/></svg>
@@ -136,13 +140,11 @@
             <span class="text-xs text-slate-400">※1件で単体詳細、2件以上で自動比較</span>
           </div>
 
-          <!-- 直近の照会履歴（ワンタップ入力） -->
           <div id="historySection" class="pt-3 border-t border-slate-100 hidden">
             <label class="block text-xs font-bold text-slate-500 mb-1.5">最近の読取・照会履歴（タップで空欄にセット）</label>
             <div id="historyChips" class="flex gap-1.5 overflow-x-auto no-scrollbar pb-1"></div>
           </div>
 
-          <!-- 重視ポイント選択チップ -->
           <div class="pt-3 border-t border-slate-100">
             <label class="block text-xs font-bold text-slate-600 mb-2">ご要望・比較軸の指定（複数選択可）</label>
             <div id="criteriaChips" class="flex flex-wrap gap-1.5 mb-2.5">
@@ -157,7 +159,6 @@
               class="w-full border border-slate-300 bg-slate-50 rounded px-3 py-2 text-xs focus:bg-white focus:outline-none focus:border-blue-600">
           </div>
 
-          <!-- 照会実行ボタン -->
           <button id="submitBtn" onclick="runAnalysis()" 
             class="w-full bg-slate-900 hover:bg-slate-800 text-white font-bold py-3 rounded shadow-sm transition flex justify-center items-center space-x-2 text-sm">
             <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-3 7h3m-3 4h3m-6-4h.01M9 16h.01"/></svg>
@@ -166,7 +167,7 @@
         </div>
       </div>
 
-      <!-- 折りたたみ時の簡易バー（お客様提示中などに表示） -->
+      <!-- 折りたたみ時の簡易バー -->
       <div id="collapsedInputBar" class="hidden bg-white px-4 py-2.5 rounded-lg shadow-sm border border-slate-200 flex justify-between items-center">
         <span id="collapsedSummaryText" class="text-xs font-bold text-slate-700 truncate">照会完了</span>
         <button onclick="toggleInputPanel(true)" class="text-xs font-bold text-blue-700 hover:underline flex items-center space-x-1 shrink-0 ml-2">
@@ -181,10 +182,9 @@
         <p class="text-xs text-slate-400">JANコード・型番から正確な仕様を検証しています</p>
       </div>
 
-      <!-- 3. 照会結果表示エリア（お客様用 / スタッフ用 切替） -->
+      <!-- 3. 照会結果表示エリア -->
       <div id="resultContainer" class="hidden space-y-4">
         
-        <!-- ビュー切替タブバー -->
         <div class="bg-white p-1.5 rounded-lg shadow-sm border border-slate-200 flex justify-between items-center">
           <div class="grid grid-cols-2 gap-1 w-full">
             <button id="tabCustomerView" onclick="switchResultView('customer')" class="py-2 px-3 rounded text-xs font-bold bg-slate-900 text-white shadow-sm transition flex items-center justify-center space-x-1.5">
@@ -198,12 +198,10 @@
           </div>
         </div>
 
-        <!-- A. お客様提示用ビュー（クリーンな比較表＆製品カード） -->
+        <!-- A. お客様提示用ビュー -->
         <div id="customerViewContent" class="space-y-4">
-          <!-- 製品概要カード群 -->
           <div id="customerProductCards" class="grid grid-cols-1 md:grid-cols-2 gap-3"></div>
 
-          <!-- 比較マトリクス表 / 主要仕様表 -->
           <div class="bg-white rounded-lg shadow-sm border border-slate-200 overflow-hidden">
             <div class="bg-slate-800 text-white px-4 py-2.5 flex justify-between items-center">
               <h3 class="text-xs font-bold tracking-wider">主要項目・仕様比較一覧</h3>
@@ -214,17 +212,14 @@
             </div>
           </div>
 
-          <!-- 選び分け・主要ポイントまとめ -->
           <div class="bg-white rounded-lg shadow-sm border border-slate-200 p-4">
             <h3 class="text-xs font-bold text-slate-500 uppercase tracking-wider mb-3 pb-1.5 border-b border-slate-100">主な違い・選び方の目安</h3>
             <div id="customerKeyDifferences" class="space-y-3 scalable-text"></div>
           </div>
         </div>
 
-        <!-- B. スタッフ専用ビュー（接客トーク・切り返し・クロスセル・情報源） -->
+        <!-- B. スタッフ専用ビュー -->
         <div id="staffViewContent" class="hidden space-y-4 scalable-text">
-          
-          <!-- 1. ヒアリング＆キラーフレーズ -->
           <div class="bg-white rounded-lg shadow-sm border border-slate-200 p-4 space-y-4">
             <div>
               <h3 class="text-xs font-bold text-blue-800 bg-blue-50 inline-block px-2.5 py-1 rounded mb-2">1. 最初に確認すべきヒアリング項目</h3>
@@ -236,20 +231,17 @@
             </div>
           </div>
 
-          <!-- 2. ネガティブ潰し（懸念点への切り返しQ&A） -->
           <div class="bg-white rounded-lg shadow-sm border border-slate-200 p-4">
             <h3 class="text-xs font-bold text-amber-900 bg-amber-50 border border-amber-200 inline-block px-2.5 py-1 rounded mb-3">3. 懸念点への切り返し・背中押しQ&A</h3>
             <div id="staffObjectionList" class="space-y-3"></div>
           </div>
 
-          <!-- 3. プラスワン付帯提案（長期保証・関連商品・上位誘導） -->
           <div class="bg-white rounded-lg shadow-sm border border-slate-200 p-4">
             <h3 class="text-xs font-bold text-emerald-900 bg-emerald-50 border border-emerald-200 inline-block px-2.5 py-1 rounded mb-3">4. プラスワン・セット提案（単価・満足度アップ）</h3>
             <div id="staffCrossSellList" class="grid grid-cols-1 md:grid-cols-2 gap-2.5"></div>
             <div id="staffClosingBox" class="mt-3 pt-3 border-t border-slate-100 text-slate-800 font-medium"></div>
           </div>
 
-          <!-- 4. 検証ソース（メーカー公式・Web参照元リンク） -->
           <div class="bg-slate-100 rounded-lg border border-slate-200 p-3 text-xs text-slate-600">
             <div class="font-bold mb-1.5 flex items-center space-x-1">
               <svg class="w-3.5 h-3.5 text-slate-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13.828 10.172a4 4 0 00-5.656 0l-4 4a4 4 0 105.656 5.656l1.102-1.101m-.758-4.899a4 4 0 005.656 0l4-4a4 4 0 00-5.656-5.656l-1.1 1.1"/></svg>
@@ -257,7 +249,6 @@
             </div>
             <div id="groundingSourcesList" class="flex flex-wrap gap-2"></div>
           </div>
-
         </div>
 
       </div>
@@ -266,22 +257,20 @@
   </div>
 
   <script>
-    // --- PWA Service Worker 登録 ---
     if ('serviceWorker' in navigator) {
       window.addEventListener('load', () => {
         navigator.serviceWorker.register('./sw.js').catch(() => {});
       });
     }
 
-    // --- 定数・状態管理 ---
-    const SECRET_PASSWORD = "7777"; // ロック解除パスコード
+    const SECRET_PASSWORD = "7777";
+    const DEFAULT_MODEL = "gemini-3.0-flash";
     const MAX_PRODUCTS = 5;
     let html5QrCode = null;
     let isContinuousScan = false;
     let lastScannedCode = "";
     let lastScanTime = 0;
 
-    // --- 初期化 ---
     window.addEventListener('DOMContentLoaded', () => {
       if (sessionStorage.getItem('isLoggedIn') === 'true') {
         unlockApp();
@@ -289,13 +278,11 @@
       document.getElementById('systemPassword').addEventListener('keypress', (e) => {
         if (e.key === 'Enter') checkPassword();
       });
-      // 初期状態で2枠用意（1枠だけでも照会可能）
       addProductRow();
       addProductRow();
       renderHistory();
     });
 
-    // --- 認証処理 ---
     function checkPassword() {
       const input = document.getElementById('systemPassword').value;
       if (input === SECRET_PASSWORD) {
@@ -310,6 +297,8 @@
       document.getElementById('loginScreen').classList.add('hidden');
       document.getElementById('mainApp').classList.remove('hidden');
       const savedKey = localStorage.getItem('gemini_api_key');
+      const savedModel = localStorage.getItem('gemini_model_name') || DEFAULT_MODEL;
+      document.getElementById('modelNameInput').value = savedModel;
       if (!savedKey) {
         document.getElementById('apiKeySection').classList.remove('hidden');
       } else {
@@ -323,13 +312,14 @@
 
     function saveApiKey() {
       const key = document.getElementById('apiKeyInput').value.trim();
+      const model = document.getElementById('modelNameInput').value.trim() || DEFAULT_MODEL;
+      localStorage.setItem('gemini_model_name', model);
       if (key) {
         localStorage.setItem('gemini_api_key', key);
         document.getElementById('apiKeySection').classList.add('hidden');
       }
     }
 
-    // --- 文字サイズ切替 ---
     function setFontSize(size) {
       document.body.className = `font-${size} min-h-screen pb-16`;
       ['Normal', 'Large', 'Xlarge'].forEach(s => {
@@ -342,7 +332,6 @@
       });
     }
 
-    // --- 動的な製品入力枠の管理（1〜5個） ---
     function addProductRow(initialValue = "") {
       const list = document.getElementById('productInputsList');
       const currentCount = list.children.length;
@@ -379,7 +368,6 @@
     function removeProductRow(rowId) {
       const list = document.getElementById('productInputsList');
       if (list.children.length <= 1) {
-        // 最低1枠は残し、中身だけクリアする
         list.querySelector('.product-input').value = '';
         return;
       }
@@ -410,7 +398,6 @@
       document.getElementById('resultContainer').classList.add('hidden');
     }
 
-    // --- 重視ポイントチップの選択 ---
     function toggleChip(btn) {
       const isSelected = btn.classList.contains('bg-blue-700');
       if (isSelected) {
@@ -422,7 +409,6 @@
       }
     }
 
-    // --- スキャン時の電子音（ハンディターミナル風ビープ） ---
     function playBeep() {
       try {
         const ctx = new (window.AudioContext || window.webkitAudioContext)();
@@ -439,7 +425,6 @@
       } catch (e) {}
     }
 
-    // --- カメラ読取（単発 & 連続スキャン） ---
     async function startSingleScan(targetInputId, index) {
       isContinuousScan = false;
       document.getElementById('continuousScanBanner').classList.add('hidden');
@@ -460,13 +445,11 @@
 
       await launchCamera((decodedText) => {
         const now = Date.now();
-        // 同じバーコードの連続誤読を防止（2.5秒間隔）
         if (decodedText === lastScannedCode && (now - lastScanTime) < 2500) return;
         lastScannedCode = decodedText;
         lastScanTime = now;
         playBeep();
 
-        // 空いている入力欄を探す。なければ新規追加
         const inputs = Array.from(document.querySelectorAll('.product-input'));
         let emptyInput = inputs.find(input => !input.value.trim());
         
@@ -526,7 +509,6 @@
       document.getElementById('scannerContainer').classList.add('hidden');
     }
 
-    // --- 照会履歴の管理（localStorage） ---
     function saveToHistory(code, label) {
       let history = JSON.parse(localStorage.getItem('product_scan_history') || '[]');
       history = history.filter(item => item.code !== code);
@@ -555,7 +537,6 @@
 
     function insertFromHistory(code) {
       const inputs = Array.from(document.querySelectorAll('.product-input'));
-      // 既に同じコードが入っていれば何もしない
       if (inputs.some(i => i.value.trim() === code)) return;
       let target = inputs.find(i => !i.value.trim());
       if (!target && inputs.length < MAX_PRODUCTS) {
@@ -573,13 +554,11 @@
       alert('履歴を消去しました。');
     }
 
-    // --- 入力パネルの折りたたみ制御 ---
     function toggleInputPanel(show) {
       document.getElementById('inputPanel').classList.toggle('hidden', !show);
       document.getElementById('collapsedInputBar').classList.toggle('hidden', show);
     }
 
-    // --- 結果ビュー（お客様提示用 / スタッフ専用）の切り替え ---
     function switchResultView(mode) {
       const isCustomer = mode === 'customer';
       document.getElementById('customerViewContent').classList.toggle('hidden', !isCustomer);
@@ -594,9 +573,9 @@
         : "py-2 px-3 rounded text-xs font-bold text-slate-600 hover:bg-slate-100 transition flex items-center justify-center space-x-1.5";
     }
 
-    // --- メイン処理：Gemini APIによる検索＆構造化データ生成 ---
     async function runAnalysis() {
       const apiKey = localStorage.getItem('gemini_api_key');
+      const modelName = localStorage.getItem('gemini_model_name') || document.getElementById('modelNameInput').value.trim() || DEFAULT_MODEL;
       if (!apiKey) {
         alert('右上の設定アイコンからシステム連携キー（Gemini APIキー）を設定してください。');
         document.getElementById('apiKeySection').classList.remove('hidden');
@@ -697,7 +676,7 @@ ${allCriteria ? `【重視する比較軸・お客様のご要望】\n${allCrite
       document.getElementById('submitBtn').disabled = true;
 
       try {
-        const res = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${apiKey}`, {
+        const res = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${modelName}:generateContent?key=${apiKey}`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
@@ -716,7 +695,6 @@ ${allCriteria ? `【重視する比較軸・お客様のご要望】\n${allCrite
         const parsed = JSON.parse(jsonMatch[0]);
         const groundingChunks = data.candidates?.[0]?.groundingMetadata?.groundingChunks || [];
 
-        // 履歴に確定した型番付きで保存
         if (parsed.products && Array.isArray(parsed.products)) {
           parsed.products.forEach((p, idx) => {
             const origInput = inputs[idx] || p.inputCode;
@@ -728,9 +706,9 @@ ${allCriteria ? `【重視する比較軸・お客様のご要望】\n${allCrite
         }
 
         renderResults(parsed, groundingChunks);
-        toggleInputPanel(false); // 入力欄をコンパクトに折りたたむ
+        toggleInputPanel(false);
         document.getElementById('resultContainer').classList.remove('hidden');
-        switchResultView('customer'); // まずはお客様提示用画面を表示
+        switchResultView('customer');
 
       } catch (err) {
         alert("照会エラー: " + err.message);
@@ -740,15 +718,12 @@ ${allCriteria ? `【重視する比較軸・お客様のご要望】\n${allCrite
       }
     }
 
-    // --- 結果データを業務UIへレンダリング ---
     function renderResults(data, groundingChunks) {
       const products = data.products || [];
       
-      // 折りたたみバーの要約テキスト更新
       const summaryNames = products.map(p => `${p.maker || ''} ${p.modelNumber || p.productName}`).join(' ／ ');
       document.getElementById('collapsedSummaryText').textContent = `照会中: ${summaryNames}`;
 
-      // 1. お客様用：製品カード描画
       const cardsContainer = document.getElementById('customerProductCards');
       cardsContainer.className = products.length === 1 
         ? "grid grid-cols-1 gap-3" 
@@ -782,7 +757,6 @@ ${allCriteria ? `【重視する比較軸・お客様のご要望】\n${allCrite
         </div>
       `).join('');
 
-      // 2. お客様用：比較マトリクス表の描画
       const table = document.getElementById('comparisonMatrixTable');
       const headers = data.comparisonTable?.headers || [];
       const rows = data.comparisonTable?.rows || [];
@@ -807,7 +781,6 @@ ${allCriteria ? `【重視する比較軸・お客様のご要望】\n${allCrite
         `;
       }
 
-      // 3. お客様用：違い・選び方の目安
       const diffs = data.keyDifferences || [];
       document.getElementById('customerKeyDifferences').innerHTML = diffs.map(d => `
         <div class="bg-slate-50 p-3 rounded border-l-4 border-blue-700">
@@ -816,7 +789,6 @@ ${allCriteria ? `【重視する比較軸・お客様のご要望】\n${allCrite
         </div>
       `).join('');
 
-      // 4. スタッフ専用ビューの描画
       const guide = data.staffGuide || {};
       document.getElementById('staffHearingList').innerHTML = (guide.hearingQuestions || []).map(q => `
         <li>${escapeHtml(q)}</li>
@@ -847,7 +819,6 @@ ${allCriteria ? `【重視する比較軸・お客様のご要望】\n${allCrite
         ? `<span class="text-xs font-bold bg-slate-800 text-white px-2 py-0.5 rounded mr-1.5">決め手の一言</span><span>「${escapeHtml(guide.closingAdvice)}」</span>`
         : '';
 
-      // 5. 検索ソース（ファクトチェック用URL）の描画
       const sourcesContainer = document.getElementById('groundingSourcesList');
       const webSources = groundingChunks.filter(c => c.web && c.web.uri);
       if (webSources.length > 0) {
