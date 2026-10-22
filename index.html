@@ -1,0 +1,875 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>製品仕様・比較照会システム</title>
+  <link rel="manifest" href="./manifest.json">
+  <meta name="theme-color" content="#0f172a">
+  <link rel="apple-touch-icon" href="./icon-192.png">
+  <!-- Tailwind CSS -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <!-- html5-qrcode -->
+  <script src="https://cdn.jsdelivr.net/npm/html5-qrcode/html5-qrcode.min.js"></script>
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&family=Noto+Sans+JP:wght@400;500;700&display=swap');
+    body {
+      font-family: 'Inter', 'Noto Sans JP', sans-serif;
+      background-color: #f1f5f9;
+      color: #0f172a;
+      -webkit-tap-highlight-color: transparent;
+    }
+    /* 文字サイズ切り替え制御 */
+    body.font-normal { --base-scale: 1; }
+    body.font-large { --base-scale: 1.125; }
+    body.font-xlarge { --base-scale: 1.25; }
+    .scalable-text { font-size: calc(0.875rem * var(--base-scale, 1)); line-height: calc(1.4rem * var(--base-scale, 1)); }
+    .scalable-title { font-size: calc(1.05rem * var(--base-scale, 1)); }
+    .scalable-table { font-size: calc(0.825rem * var(--base-scale, 1)); }
+
+    /* スクロールバー調整 */
+    .no-scrollbar::-webkit-scrollbar { display: none; }
+    .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
+  </style>
+</head>
+<body class="font-normal min-h-screen pb-16">
+
+  <!-- 1. 認証ロック画面 -->
+  <div id="loginScreen" class="fixed inset-0 bg-slate-900 z-50 flex flex-col items-center justify-center px-4">
+    <div class="bg-white p-7 rounded-lg shadow-2xl w-full max-w-sm border border-slate-700">
+      <div class="flex items-center justify-center mb-4 text-slate-800">
+        <svg class="w-7 h-7 mr-2 text-blue-700" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"/></svg>
+        <h1 class="text-base font-bold tracking-wider">端末ロック認証</h1>
+      </div>
+      <p class="text-xs text-slate-500 text-center mb-5">社内スタッフ用パスコードを入力してください</p>
+      <input type="password" id="systemPassword" inputmode="numeric" placeholder="PASSCODE" 
+        class="w-full border border-slate-300 rounded px-4 py-3 text-center text-lg tracking-widest font-mono mb-4 focus:outline-none focus:border-blue-700 focus:ring-1 focus:ring-blue-700">
+      <button onclick="checkPassword()" 
+        class="w-full bg-slate-900 hover:bg-slate-800 text-white font-bold py-3 rounded text-sm transition">
+        ロック解除
+      </button>
+      <p id="loginError" class="text-red-600 text-xs text-center font-bold mt-3 hidden">パスコードが一致しません</p>
+    </div>
+  </div>
+
+  <!-- 2. メインシステム画面 -->
+  <div id="mainApp" class="hidden">
+    
+    <!-- トップバー -->
+    <header class="bg-slate-900 text-white sticky top-0 z-30 border-b border-slate-800 shadow-sm">
+      <div class="max-w-4xl mx-auto px-4 h-14 flex justify-between items-center">
+        <div class="flex items-center space-x-2.5">
+          <div class="w-2 h-5 bg-blue-500 rounded-sm"></div>
+          <span class="font-bold text-sm md:text-base tracking-tight">製品仕様・比較照会システム</span>
+        </div>
+        <div class="flex items-center space-x-2">
+          <!-- 文字サイズ切替 -->
+          <div class="flex bg-slate-800 rounded p-0.5 border border-slate-700">
+            <button onclick="setFontSize('normal')" id="btnFontNormal" class="px-2 py-1 text-xs font-bold rounded bg-slate-600 text-white">標準</button>
+            <button onclick="setFontSize('large')" id="btnFontLarge" class="px-2 py-1 text-xs font-bold rounded text-slate-400 hover:text-white">大</button>
+            <button onclick="setFontSize('xlarge')" id="btnFontXlarge" class="px-2 py-1 text-xs font-bold rounded text-slate-400 hover:text-white">特大</button>
+          </div>
+          <!-- 設定ボタン -->
+          <button onclick="toggleApiKeyModal()" class="p-2 text-slate-300 hover:text-white bg-slate-800 rounded border border-slate-700" title="システム設定">
+            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"/><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/></svg>
+          </button>
+        </div>
+      </div>
+    </header>
+
+    <main class="max-w-4xl mx-auto p-3 md:p-5 space-y-4">
+
+      <!-- APIキー設定パネル -->
+      <div id="apiKeySection" class="bg-white p-4 rounded-lg shadow-sm border border-slate-300 hidden">
+        <div class="flex justify-between items-center mb-2">
+          <label class="text-xs font-bold text-slate-700">システム連携キー設定 (API Key)</label>
+          <button onclick="clearHistory()" class="text-xs text-red-600 hover:underline">照会履歴を全消去</button>
+        </div>
+        <div class="flex gap-2">
+          <input type="password" id="apiKeyInput" placeholder="APIキーを入力" class="flex-1 border border-slate-300 rounded px-3 py-2 text-sm font-mono focus:outline-none focus:border-blue-600">
+          <button onclick="saveApiKey()" class="bg-slate-900 text-white px-4 py-2 rounded text-xs font-bold hover:bg-slate-800">保存</button>
+        </div>
+      </div>
+
+      <!-- カメラバーコードスキャナ領域 -->
+      <div id="scannerContainer" class="bg-slate-900 rounded-lg overflow-hidden shadow-lg hidden border border-slate-700">
+        <div class="px-4 py-2.5 flex justify-between items-center border-b border-slate-800">
+          <div class="flex items-center space-x-2">
+            <span class="w-2.5 h-2.5 bg-red-500 rounded-full animate-pulse"></span>
+            <span id="scannerTargetLabel" class="text-white text-xs font-bold">JANコード読取中...</span>
+          </div>
+          <button onclick="stopScanner()" class="bg-slate-700 hover:bg-slate-600 text-white px-3 py-1 rounded text-xs font-bold">閉じる</button>
+        </div>
+        <div id="reader" class="w-full bg-black"></div>
+        <div id="continuousScanBanner" class="bg-blue-950 text-blue-200 px-4 py-2 text-xs flex justify-between items-center hidden">
+          <span>連続スキャン中：次のバーコードをかざすと自動で次の枠に入力されます</span>
+          <span id="scanCountBadge" class="bg-blue-700 text-white px-2 py-0.5 rounded font-mono font-bold">0件読取済</span>
+        </div>
+      </div>
+
+      <!-- 入力パネル（折りたたみ可能） -->
+      <div id="inputPanel" class="bg-white rounded-lg shadow-sm border border-slate-200 overflow-hidden">
+        <div class="bg-slate-50 px-4 py-3 border-b border-slate-200 flex justify-between items-center">
+          <div class="flex items-center space-x-2">
+            <h2 class="text-xs font-bold text-slate-700 uppercase tracking-wider">対象製品 登録・スキャン</h2>
+            <span id="productCountBadge" class="bg-slate-200 text-slate-700 text-xs font-bold px-2 py-0.5 rounded">1製品</span>
+          </div>
+          <div class="flex items-center space-x-2">
+            <button onclick="startContinuousScan()" class="bg-blue-700 hover:bg-blue-800 text-white px-3 py-1.5 rounded text-xs font-bold flex items-center space-x-1.5 shadow-sm transition">
+              <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 4a1 1 0 011-1h3a1 1 0 011 1v3a1 1 0 01-1 1H4a1 1 0 01-1-1V4zm2 2V5h1v1H5zM3 13a1 1 0 011-1h3a1 1 0 011 1v3a1 1 0 01-1 1H4a1 1 0 01-1-1v-3zm2 2v-1h1v1H5zM13 4a1 1 0 011-1h3a1 1 0 011 1v3a1 1 0 01-1 1h-3a1 1 0 01-1-1V4zm2 2V5h1v1h-1zM13 13a1 1 0 011-1h3a1 1 0 011 1v3a1 1 0 01-1 1h-3a1 1 0 01-1-1v-3zm2 2v-1h1v1h-1z"/></svg>
+              <span>連続バーコード読取</span>
+            </button>
+            <button onclick="resetAllInputs()" class="text-xs text-slate-500 hover:text-slate-800 px-2 py-1">リセット</button>
+          </div>
+        </div>
+
+        <div class="p-4 space-y-4">
+          <!-- 動的な商品入力リスト -->
+          <div id="productInputsList" class="space-y-2.5"></div>
+
+          <!-- 製品枠追加ボタン -->
+          <div class="flex justify-between items-center pt-1">
+            <button onclick="addProductRow()" id="btnAddProduct" class="text-xs font-bold text-blue-700 hover:text-blue-900 flex items-center space-x-1 py-1.5 px-3 rounded border border-blue-200 bg-blue-50/50 hover:bg-blue-100/50 transition">
+              <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/></svg>
+              <span>比較する製品枠を追加（最大5件）</span>
+            </button>
+            <span class="text-xs text-slate-400">※1件で単体詳細、2件以上で自動比較</span>
+          </div>
+
+          <!-- 直近の照会履歴（ワンタップ入力） -->
+          <div id="historySection" class="pt-3 border-t border-slate-100 hidden">
+            <label class="block text-xs font-bold text-slate-500 mb-1.5">最近の読取・照会履歴（タップで空欄にセット）</label>
+            <div id="historyChips" class="flex gap-1.5 overflow-x-auto no-scrollbar pb-1"></div>
+          </div>
+
+          <!-- 重視ポイント選択チップ -->
+          <div class="pt-3 border-t border-slate-100">
+            <label class="block text-xs font-bold text-slate-600 mb-2">ご要望・比較軸の指定（複数選択可）</label>
+            <div id="criteriaChips" class="flex flex-wrap gap-1.5 mb-2.5">
+              <button type="button" onclick="toggleChip(this)" data-val="操作が簡単・迷わず使える（シニア・初心者配慮）" class="chip-btn text-xs px-2.5 py-1.5 rounded border border-slate-300 bg-white text-slate-700 hover:bg-slate-50 transition">操作の簡単さ</button>
+              <button type="button" onclick="toggleChip(this)" data-val="コストパフォーマンス・本体価格と機能のバランス" class="chip-btn text-xs px-2.5 py-1.5 rounded border border-slate-300 bg-white text-slate-700 hover:bg-slate-50 transition">コスパ・価格差</button>
+              <button type="button" onclick="toggleChip(this)" data-val="上位モデルならではの高性能・独自技術・品質" class="chip-btn text-xs px-2.5 py-1.5 rounded border border-slate-300 bg-white text-slate-700 hover:bg-slate-50 transition">性能・スペック重視</button>
+              <button type="button" onclick="toggleChip(this)" data-val="日々のお手入れ・掃除・メンテナンスのしやすさ" class="chip-btn text-xs px-2.5 py-1.5 rounded border border-slate-300 bg-white text-slate-700 hover:bg-slate-50 transition">お手入れ・掃除の楽さ</button>
+              <button type="button" onclick="toggleChip(this)" data-val="省エネ性能・電気代やランニングコストの低さ" class="chip-btn text-xs px-2.5 py-1.5 rounded border border-slate-300 bg-white text-slate-700 hover:bg-slate-50 transition">省エネ・維持費</button>
+              <button type="button" onclick="toggleChip(this)" data-val="設置サイズ・コンパクトさ・取り回しの良さ" class="chip-btn text-xs px-2.5 py-1.5 rounded border border-slate-300 bg-white text-slate-700 hover:bg-slate-50 transition">サイズ・設置性</button>
+            </div>
+            <input type="text" id="customerNote" placeholder="補足条件を入力（例：一人暮らし用、6畳の寝室、買い替え前の機種との違い 等）" 
+              class="w-full border border-slate-300 bg-slate-50 rounded px-3 py-2 text-xs focus:bg-white focus:outline-none focus:border-blue-600">
+          </div>
+
+          <!-- 照会実行ボタン -->
+          <button id="submitBtn" onclick="runAnalysis()" 
+            class="w-full bg-slate-900 hover:bg-slate-800 text-white font-bold py-3 rounded shadow-sm transition flex justify-center items-center space-x-2 text-sm">
+            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-3 7h3m-3 4h3m-6-4h.01M9 16h.01"/></svg>
+            <span>仕様照会・比較シートを作成</span>
+          </button>
+        </div>
+      </div>
+
+      <!-- 折りたたみ時の簡易バー（お客様提示中などに表示） -->
+      <div id="collapsedInputBar" class="hidden bg-white px-4 py-2.5 rounded-lg shadow-sm border border-slate-200 flex justify-between items-center">
+        <span id="collapsedSummaryText" class="text-xs font-bold text-slate-700 truncate">照会完了</span>
+        <button onclick="toggleInputPanel(true)" class="text-xs font-bold text-blue-700 hover:underline flex items-center space-x-1 shrink-0 ml-2">
+          <span>条件・製品を変更する</span>
+        </button>
+      </div>
+
+      <!-- ローディング表示 -->
+      <div id="loadingIndicator" class="hidden bg-white p-8 rounded-lg shadow-sm border border-slate-200 text-center space-y-3">
+        <div class="inline-block w-7 h-7 border-2 border-slate-900 border-t-transparent rounded-full animate-spin"></div>
+        <p class="text-xs font-bold text-slate-700">製品データベースおよびWeb仕様情報を照会中...</p>
+        <p class="text-xs text-slate-400">JANコード・型番から正確な仕様を検証しています</p>
+      </div>
+
+      <!-- 3. 照会結果表示エリア（お客様用 / スタッフ用 切替） -->
+      <div id="resultContainer" class="hidden space-y-4">
+        
+        <!-- ビュー切替タブバー -->
+        <div class="bg-white p-1.5 rounded-lg shadow-sm border border-slate-200 flex justify-between items-center">
+          <div class="grid grid-cols-2 gap-1 w-full">
+            <button id="tabCustomerView" onclick="switchResultView('customer')" class="py-2 px-3 rounded text-xs font-bold bg-slate-900 text-white shadow-sm transition flex items-center justify-center space-x-1.5">
+              <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 17V7m0 10a2 2 0 01-2 2H5a2 2 0 01-2-2V7a2 2 0 012-2h2a2 2 0 012 2m0 10a2 2 0 002 2h2a2 2 0 002-2M9 7a2 2 0 012-2h2a2 2 0 012 2m0 10V7m0 10a2 2 0 002 2h2a2 2 0 002-2V7a2 2 0 00-2-2h-2a2 2 0 00-2 2"/></svg>
+              <span>お客様提示用（仕様・比較表）</span>
+            </button>
+            <button id="tabStaffView" onclick="switchResultView('staff')" class="py-2 px-3 rounded text-xs font-bold text-slate-600 hover:bg-slate-100 transition flex items-center justify-center space-x-1.5">
+              <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/></svg>
+              <span>スタッフ専用（提案・付帯・Q&A）</span>
+            </button>
+          </div>
+        </div>
+
+        <!-- A. お客様提示用ビュー（クリーンな比較表＆製品カード） -->
+        <div id="customerViewContent" class="space-y-4">
+          <!-- 製品概要カード群 -->
+          <div id="customerProductCards" class="grid grid-cols-1 md:grid-cols-2 gap-3"></div>
+
+          <!-- 比較マトリクス表 / 主要仕様表 -->
+          <div class="bg-white rounded-lg shadow-sm border border-slate-200 overflow-hidden">
+            <div class="bg-slate-800 text-white px-4 py-2.5 flex justify-between items-center">
+              <h3 class="text-xs font-bold tracking-wider">主要項目・仕様比較一覧</h3>
+              <span class="text-[11px] text-slate-300">横スクロール可能</span>
+            </div>
+            <div class="overflow-x-auto">
+              <table id="comparisonMatrixTable" class="w-full text-left border-collapse scalable-table"></table>
+            </div>
+          </div>
+
+          <!-- 選び分け・主要ポイントまとめ -->
+          <div class="bg-white rounded-lg shadow-sm border border-slate-200 p-4">
+            <h3 class="text-xs font-bold text-slate-500 uppercase tracking-wider mb-3 pb-1.5 border-b border-slate-100">主な違い・選び方の目安</h3>
+            <div id="customerKeyDifferences" class="space-y-3 scalable-text"></div>
+          </div>
+        </div>
+
+        <!-- B. スタッフ専用ビュー（接客トーク・切り返し・クロスセル・情報源） -->
+        <div id="staffViewContent" class="hidden space-y-4 scalable-text">
+          
+          <!-- 1. ヒアリング＆キラーフレーズ -->
+          <div class="bg-white rounded-lg shadow-sm border border-slate-200 p-4 space-y-4">
+            <div>
+              <h3 class="text-xs font-bold text-blue-800 bg-blue-50 inline-block px-2.5 py-1 rounded mb-2">1. 最初に確認すべきヒアリング項目</h3>
+              <ul id="staffHearingList" class="list-disc pl-5 space-y-1.5 text-slate-800"></ul>
+            </div>
+            <div class="pt-3 border-t border-slate-100">
+              <h3 class="text-xs font-bold text-blue-800 bg-blue-50 inline-block px-2.5 py-1 rounded mb-2">2. 製品別キラーフレーズ（提案トーク）</h3>
+              <div id="staffPitchList" class="space-y-2.5"></div>
+            </div>
+          </div>
+
+          <!-- 2. ネガティブ潰し（懸念点への切り返しQ&A） -->
+          <div class="bg-white rounded-lg shadow-sm border border-slate-200 p-4">
+            <h3 class="text-xs font-bold text-amber-900 bg-amber-50 border border-amber-200 inline-block px-2.5 py-1 rounded mb-3">3. 懸念点への切り返し・背中押しQ&A</h3>
+            <div id="staffObjectionList" class="space-y-3"></div>
+          </div>
+
+          <!-- 3. プラスワン付帯提案（長期保証・関連商品・上位誘導） -->
+          <div class="bg-white rounded-lg shadow-sm border border-slate-200 p-4">
+            <h3 class="text-xs font-bold text-emerald-900 bg-emerald-50 border border-emerald-200 inline-block px-2.5 py-1 rounded mb-3">4. プラスワン・セット提案（単価・満足度アップ）</h3>
+            <div id="staffCrossSellList" class="grid grid-cols-1 md:grid-cols-2 gap-2.5"></div>
+            <div id="staffClosingBox" class="mt-3 pt-3 border-t border-slate-100 text-slate-800 font-medium"></div>
+          </div>
+
+          <!-- 4. 検証ソース（メーカー公式・Web参照元リンク） -->
+          <div class="bg-slate-100 rounded-lg border border-slate-200 p-3 text-xs text-slate-600">
+            <div class="font-bold mb-1.5 flex items-center space-x-1">
+              <svg class="w-3.5 h-3.5 text-slate-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13.828 10.172a4 4 0 00-5.656 0l-4 4a4 4 0 105.656 5.656l1.102-1.101m-.758-4.899a4 4 0 005.656 0l4-4a4 4 0 00-5.656-5.656l-1.1 1.1"/></svg>
+              <span>仕様確認・参照データソース（ファクトチェック用）</span>
+            </div>
+            <div id="groundingSourcesList" class="flex flex-wrap gap-2"></div>
+          </div>
+
+        </div>
+
+      </div>
+
+    </main>
+  </div>
+
+  <script>
+    // --- PWA Service Worker 登録 ---
+    if ('serviceWorker' in navigator) {
+      window.addEventListener('load', () => {
+        navigator.serviceWorker.register('./sw.js').catch(() => {});
+      });
+    }
+
+    // --- 定数・状態管理 ---
+    const SECRET_PASSWORD = "7777"; // ロック解除パスコード
+    const MAX_PRODUCTS = 5;
+    let html5QrCode = null;
+    let isContinuousScan = false;
+    let lastScannedCode = "";
+    let lastScanTime = 0;
+
+    // --- 初期化 ---
+    window.addEventListener('DOMContentLoaded', () => {
+      if (sessionStorage.getItem('isLoggedIn') === 'true') {
+        unlockApp();
+      }
+      document.getElementById('systemPassword').addEventListener('keypress', (e) => {
+        if (e.key === 'Enter') checkPassword();
+      });
+      // 初期状態で2枠用意（1枠だけでも照会可能）
+      addProductRow();
+      addProductRow();
+      renderHistory();
+    });
+
+    // --- 認証処理 ---
+    function checkPassword() {
+      const input = document.getElementById('systemPassword').value;
+      if (input === SECRET_PASSWORD) {
+        sessionStorage.setItem('isLoggedIn', 'true');
+        unlockApp();
+      } else {
+        document.getElementById('loginError').classList.remove('hidden');
+      }
+    }
+
+    function unlockApp() {
+      document.getElementById('loginScreen').classList.add('hidden');
+      document.getElementById('mainApp').classList.remove('hidden');
+      const savedKey = localStorage.getItem('gemini_api_key');
+      if (!savedKey) {
+        document.getElementById('apiKeySection').classList.remove('hidden');
+      } else {
+        document.getElementById('apiKeyInput').value = savedKey;
+      }
+    }
+
+    function toggleApiKeyModal() {
+      document.getElementById('apiKeySection').classList.toggle('hidden');
+    }
+
+    function saveApiKey() {
+      const key = document.getElementById('apiKeyInput').value.trim();
+      if (key) {
+        localStorage.setItem('gemini_api_key', key);
+        document.getElementById('apiKeySection').classList.add('hidden');
+      }
+    }
+
+    // --- 文字サイズ切替 ---
+    function setFontSize(size) {
+      document.body.className = `font-${size} min-h-screen pb-16`;
+      ['Normal', 'Large', 'Xlarge'].forEach(s => {
+        const btn = document.getElementById('btnFont' + s);
+        if (s.toLowerCase() === size) {
+          btn.className = "px-2 py-1 text-xs font-bold rounded bg-slate-600 text-white";
+        } else {
+          btn.className = "px-2 py-1 text-xs font-bold rounded text-slate-400 hover:text-white";
+        }
+      });
+    }
+
+    // --- 動的な製品入力枠の管理（1〜5個） ---
+    function addProductRow(initialValue = "") {
+      const list = document.getElementById('productInputsList');
+      const currentCount = list.children.length;
+      if (currentCount >= MAX_PRODUCTS) return;
+
+      const index = currentCount + 1;
+      const rowId = `productRow_${Date.now()}_${index}`;
+      const inputId = `productInput_${Date.now()}_${index}`;
+
+      const row = document.createElement('div');
+      row.id = rowId;
+      row.className = "product-row flex items-center gap-2";
+      row.innerHTML = `
+        <span class="row-badge w-14 text-center text-xs font-bold py-2.5 bg-slate-100 text-slate-700 rounded border border-slate-200 shrink-0">製品 ${index}</span>
+        <div class="relative flex-1">
+          <input type="text" id="${inputId}" value="${initialValue}" placeholder="JANコード または 型番・製品名" 
+            class="product-input w-full border border-slate-300 rounded pl-3 pr-7 py-2 text-sm focus:outline-none focus:border-blue-700">
+          <button onclick="document.getElementById('${inputId}').value=''" class="absolute right-2 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 text-xs font-bold">✕</button>
+        </div>
+        <button onclick="startSingleScan('${inputId}', ${index})" 
+          class="bg-slate-800 hover:bg-slate-700 text-white px-3 py-2 rounded text-xs font-bold flex items-center space-x-1 shrink-0 transition">
+          <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 9a2 2 0 012-2h.93a2 2 0 001.664-.89l.812-1.22A2 2 0 0110.07 4h3.86a2 2 0 011.664.89l.812 1.22A2 2 0 0018.07 7H19a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V9z"/><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 13a3 3 0 11-6 0 3 3 0 016 0z"/></svg>
+          <span>JAN</span>
+        </button>
+        <button onclick="removeProductRow('${rowId}')" class="btn-remove p-2 text-slate-400 hover:text-red-600 rounded border border-transparent hover:border-slate-200 shrink-0" title="枠を削除">
+          <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/></svg>
+        </button>
+      `;
+      list.appendChild(row);
+      renumberProductRows();
+      return inputId;
+    }
+
+    function removeProductRow(rowId) {
+      const list = document.getElementById('productInputsList');
+      if (list.children.length <= 1) {
+        // 最低1枠は残し、中身だけクリアする
+        list.querySelector('.product-input').value = '';
+        return;
+      }
+      const row = document.getElementById(rowId);
+      if (row) row.remove();
+      renumberProductRows();
+    }
+
+    function renumberProductRows() {
+      const rows = document.querySelectorAll('#productInputsList .product-row');
+      rows.forEach((row, idx) => {
+        row.querySelector('.row-badge').textContent = `製品 ${idx + 1}`;
+      });
+      document.getElementById('productCountBadge').textContent = `${rows.length}枠`;
+      document.getElementById('btnAddProduct').classList.toggle('hidden', rows.length >= MAX_PRODUCTS);
+    }
+
+    function resetAllInputs() {
+      const list = document.getElementById('productInputsList');
+      list.innerHTML = '';
+      addProductRow();
+      addProductRow();
+      document.getElementById('customerNote').value = '';
+      document.querySelectorAll('.chip-btn').forEach(btn => {
+        btn.classList.remove('bg-blue-700', 'text-white', 'border-blue-700');
+        btn.classList.add('bg-white', 'text-slate-700', 'border-slate-300');
+      });
+      document.getElementById('resultContainer').classList.add('hidden');
+    }
+
+    // --- 重視ポイントチップの選択 ---
+    function toggleChip(btn) {
+      const isSelected = btn.classList.contains('bg-blue-700');
+      if (isSelected) {
+        btn.classList.remove('bg-blue-700', 'text-white', 'border-blue-700');
+        btn.classList.add('bg-white', 'text-slate-700', 'border-slate-300');
+      } else {
+        btn.classList.remove('bg-white', 'text-slate-700', 'border-slate-300');
+        btn.classList.add('bg-blue-700', 'text-white', 'border-blue-700');
+      }
+    }
+
+    // --- スキャン時の電子音（ハンディターミナル風ビープ） ---
+    function playBeep() {
+      try {
+        const ctx = new (window.AudioContext || window.webkitAudioContext)();
+        const osc = ctx.createOscillator();
+        const gain = ctx.createGain();
+        osc.type = 'sine';
+        osc.frequency.setValueAtTime(1800, ctx.currentTime);
+        gain.gain.setValueAtTime(0.15, ctx.currentTime);
+        osc.connect(gain);
+        gain.connect(ctx.destination);
+        osc.start();
+        osc.stop(ctx.currentTime + 0.08);
+        if (navigator.vibrate) navigator.vibrate(60);
+      } catch (e) {}
+    }
+
+    // --- カメラ読取（単発 & 連続スキャン） ---
+    async function startSingleScan(targetInputId, index) {
+      isContinuousScan = false;
+      document.getElementById('continuousScanBanner').classList.add('hidden');
+      document.getElementById('scannerTargetLabel').textContent = `製品 ${index} のJANコード読取中...`;
+      await launchCamera((decodedText) => {
+        playBeep();
+        document.getElementById(targetInputId).value = decodedText;
+        stopScanner();
+      });
+    }
+
+    async function startContinuousScan() {
+      isContinuousScan = true;
+      lastScannedCode = "";
+      document.getElementById('continuousScanBanner').classList.remove('hidden');
+      document.getElementById('scannerTargetLabel').textContent = `連続スキャンモード（複数製品を順に読取）`;
+      updateScanCountBadge();
+
+      await launchCamera((decodedText) => {
+        const now = Date.now();
+        // 同じバーコードの連続誤読を防止（2.5秒間隔）
+        if (decodedText === lastScannedCode && (now - lastScanTime) < 2500) return;
+        lastScannedCode = decodedText;
+        lastScanTime = now;
+        playBeep();
+
+        // 空いている入力欄を探す。なければ新規追加
+        const inputs = Array.from(document.querySelectorAll('.product-input'));
+        let emptyInput = inputs.find(input => !input.value.trim());
+        
+        if (!emptyInput && inputs.length < MAX_PRODUCTS) {
+          const newId = addProductRow();
+          emptyInput = document.getElementById(newId);
+        }
+
+        if (emptyInput) {
+          emptyInput.value = decodedText;
+          emptyInput.classList.add('ring-2', 'ring-blue-500');
+          setTimeout(() => emptyInput.classList.remove('ring-2', 'ring-blue-500'), 800);
+          updateScanCountBadge();
+        } else {
+          alert("最大件数（5件）まで読み取りました。");
+          stopScanner();
+        }
+      });
+    }
+
+    function updateScanCountBadge() {
+      const filled = Array.from(document.querySelectorAll('.product-input')).filter(i => i.value.trim()).length;
+      document.getElementById('scanCountBadge').textContent = `${filled}件セット済`;
+    }
+
+    async function launchCamera(onSuccessCallback) {
+      const container = document.getElementById('scannerContainer');
+      container.classList.remove('hidden');
+      if (html5QrCode) await stopScanner();
+      container.classList.remove('hidden');
+
+      html5QrCode = new Html5Qrcode("reader");
+      const config = {
+        fps: 12,
+        qrbox: { width: 260, height: 110 },
+        formatsToSupport: [
+          Html5QrcodeSupportedFormats.EAN_13,
+          Html5QrcodeSupportedFormats.EAN_8,
+          Html5QrcodeSupportedFormats.UPC_A
+        ]
+      };
+      try {
+        await html5QrCode.start({ facingMode: "environment" }, config, onSuccessCallback, () => {});
+      } catch (err) {
+        alert("カメラを起動できませんでした。ブラウザのカメラ許可設定をご確認ください。");
+        container.classList.add('hidden');
+      }
+    }
+
+    async function stopScanner() {
+      if (html5QrCode && html5QrCode.isScanning) {
+        try {
+          await html5QrCode.stop();
+          html5QrCode.clear();
+        } catch (e) {}
+      }
+      document.getElementById('scannerContainer').classList.add('hidden');
+    }
+
+    // --- 照会履歴の管理（localStorage） ---
+    function saveToHistory(code, label) {
+      let history = JSON.parse(localStorage.getItem('product_scan_history') || '[]');
+      history = history.filter(item => item.code !== code);
+      history.unshift({ code, label: label || code });
+      if (history.length > 12) history = history.slice(0, 12);
+      localStorage.setItem('product_scan_history', JSON.stringify(history));
+      renderHistory();
+    }
+
+    function renderHistory() {
+      const history = JSON.parse(localStorage.getItem('product_scan_history') || '[]');
+      const section = document.getElementById('historySection');
+      const container = document.getElementById('historyChips');
+      if (history.length === 0) {
+        section.classList.add('hidden');
+        return;
+      }
+      section.classList.remove('hidden');
+      container.innerHTML = history.map(item => `
+        <button onclick="insertFromHistory('${item.code.replace(/'/g, "\\'")}')" 
+          class="shrink-0 text-xs bg-slate-100 hover:bg-slate-200 text-slate-700 border border-slate-200 rounded px-2.5 py-1 flex items-center space-x-1 transition">
+          <span class="font-medium truncate max-w-[160px]">${escapeHtml(item.label)}</span>
+        </button>
+      `).join('');
+    }
+
+    function insertFromHistory(code) {
+      const inputs = Array.from(document.querySelectorAll('.product-input'));
+      // 既に同じコードが入っていれば何もしない
+      if (inputs.some(i => i.value.trim() === code)) return;
+      let target = inputs.find(i => !i.value.trim());
+      if (!target && inputs.length < MAX_PRODUCTS) {
+        const newId = addProductRow();
+        target = document.getElementById(newId);
+      } else if (!target) {
+        target = inputs[inputs.length - 1];
+      }
+      target.value = code;
+    }
+
+    function clearHistory() {
+      localStorage.removeItem('product_scan_history');
+      renderHistory();
+      alert('履歴を消去しました。');
+    }
+
+    // --- 入力パネルの折りたたみ制御 ---
+    function toggleInputPanel(show) {
+      document.getElementById('inputPanel').classList.toggle('hidden', !show);
+      document.getElementById('collapsedInputBar').classList.toggle('hidden', show);
+    }
+
+    // --- 結果ビュー（お客様提示用 / スタッフ専用）の切り替え ---
+    function switchResultView(mode) {
+      const isCustomer = mode === 'customer';
+      document.getElementById('customerViewContent').classList.toggle('hidden', !isCustomer);
+      document.getElementById('staffViewContent').classList.toggle('hidden', isCustomer);
+
+      document.getElementById('tabCustomerView').className = isCustomer
+        ? "py-2 px-3 rounded text-xs font-bold bg-slate-900 text-white shadow-sm transition flex items-center justify-center space-x-1.5"
+        : "py-2 px-3 rounded text-xs font-bold text-slate-600 hover:bg-slate-100 transition flex items-center justify-center space-x-1.5";
+      
+      document.getElementById('tabStaffView').className = !isCustomer
+        ? "py-2 px-3 rounded text-xs font-bold bg-blue-800 text-white shadow-sm transition flex items-center justify-center space-x-1.5"
+        : "py-2 px-3 rounded text-xs font-bold text-slate-600 hover:bg-slate-100 transition flex items-center justify-center space-x-1.5";
+    }
+
+    // --- メイン処理：Gemini APIによる検索＆構造化データ生成 ---
+    async function runAnalysis() {
+      const apiKey = localStorage.getItem('gemini_api_key');
+      if (!apiKey) {
+        alert('右上の設定アイコンからシステム連携キー（Gemini APIキー）を設定してください。');
+        document.getElementById('apiKeySection').classList.remove('hidden');
+        return;
+      }
+
+      const inputs = Array.from(document.querySelectorAll('.product-input'))
+        .map(i => i.value.trim())
+        .filter(v => v.length > 0);
+
+      if (inputs.length === 0) {
+        alert('少なくとも1つの製品のJANコードまたは型番を入力してください。');
+        return;
+      }
+
+      const selectedChips = Array.from(document.querySelectorAll('.chip-btn.bg-blue-700'))
+        .map(btn => btn.getAttribute('data-val'));
+      const note = document.getElementById('customerNote').value.trim();
+      const allCriteria = [...selectedChips, note].filter(Boolean).join(' / ');
+
+      const prompt = `
+あなたは家電量販店のプロフェッショナルな製品仕様データベースおよび販売戦略システムです。
+入力された ${inputs.length} 件の製品識別情報（JANコードまたは型番・商品名）について、必ずGoogle検索を用いて正確なメーカー名・型番・正式名称・公式仕様を裏取りしてください（推測や架空のスペックは厳禁です）。
+
+【照会対象リスト】
+${inputs.map((item, idx) => `- 製品${idx + 1}:${item}`).join('\n')}
+
+${allCriteria ? `【重視する比較軸・お客様のご要望】\n${allCriteria}` : ''}
+
+以下の厳密なJSONフォーマットのみで出力してください。Markdownの解説文は一切不要です。
+
+{
+  "products": [
+    {
+      "inputCode": "入力されたJANや文字列",
+      "maker": "メーカー名",
+      "modelNumber": "正確な型番",
+      "productName": "製品名（簡潔に）",
+      "summary": "一言でどんな製品か（35文字以内）",
+      "keyPoints": [
+        "お客様にとっての具体的なメリット・特徴1",
+        "具体的なメリット・特徴2",
+        "具体的なメリット・特徴3"
+      ],
+      "recommendedFor": "こういうお客様・用途に最適",
+      "staffPitch": "販売員がそのまま使えるキラーフレーズ"
+    }
+  ],
+  "comparisonTable": {
+    "headers": ["比較項目", ${inputs.map((_, idx) => `"製品${idx + 1}の型番"`).join(', ')}],
+    "rows": [
+      ["お客様が重視する仕様項目名1", ${inputs.map(() => `"具体的な仕様・特徴"`).join(', ')}],
+      ["仕様項目名2", ${inputs.map(() => `"具体的な仕様・特徴"`).join(', ')}],
+      ["仕様項目名3", ${inputs.map(() => `"具体的な仕様・特徴"`).join(', ')}],
+      ["仕様項目名4", ${inputs.map(() => `"具体的な仕様・特徴"`).join(', ')}],
+      ["仕様項目名5", ${inputs.map(() => `"具体的な仕様・特徴"`).join(', ')}]
+    ]
+  },
+  "keyDifferences": [
+    {
+      "title": "選び分けのポイント（またはこの製品の最大の強み）",
+      "detail": "お客様に提示できる丁寧で客観的な解説"
+    }
+  ],
+  "staffGuide": {
+    "hearingQuestions": [
+      "接客序盤でお客様に確認すべき質問1",
+      "確認すべき質問2",
+      "確認すべき質問3"
+    ],
+    "objectionHandling": [
+      {
+        "concern": "お客様が懸念・躊躇しやすいポイント（価格差・サイズ・手入れ・維持費など）",
+        "rebuttal": "プロとしての誠実かつ納得感のある切り返しトーク"
+      },
+      {
+        "concern": "懸念ポイント2",
+        "rebuttal": "切り返しトーク2"
+      }
+    ],
+    "crossSell": [
+      {
+        "item": "一緒に提案すべき関連商品・長期保証・設置サポート等",
+        "reason": "お客様にとってのメリットと提案トーク"
+      },
+      {
+        "item": "プラスワン提案商材2",
+        "reason": "メリットと提案トーク2"
+      }
+    ],
+    "closingAdvice": "迷っているお客様の背中を押す最後の一言"
+  }
+}
+`;
+
+      document.getElementById('loadingIndicator').classList.remove('hidden');
+      document.getElementById('resultContainer').classList.add('hidden');
+      document.getElementById('submitBtn').disabled = true;
+
+      try {
+        const res = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${apiKey}`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            contents: [{ parts: [{ text: prompt }] }],
+            tools: [{ google_search: {} }]
+          })
+        });
+
+        const data = await res.json();
+        if (data.error) throw new Error(data.error.message);
+
+        const rawText = data.candidates?.[0]?.content?.parts?.[0]?.text || "";
+        const jsonMatch = rawText.match(/\{[\s\S]*\}/);
+        if (!jsonMatch) throw new Error("仕様データの構造化に失敗しました。もう一度実行してください。");
+
+        const parsed = JSON.parse(jsonMatch[0]);
+        const groundingChunks = data.candidates?.[0]?.groundingMetadata?.groundingChunks || [];
+
+        // 履歴に確定した型番付きで保存
+        if (parsed.products && Array.isArray(parsed.products)) {
+          parsed.products.forEach((p, idx) => {
+            const origInput = inputs[idx] || p.inputCode;
+            if (origInput) {
+              const label = p.modelNumber ? `${p.modelNumber} (${p.maker || ''})` : origInput;
+              saveToHistory(origInput, label);
+            }
+          });
+        }
+
+        renderResults(parsed, groundingChunks);
+        toggleInputPanel(false); // 入力欄をコンパクトに折りたたむ
+        document.getElementById('resultContainer').classList.remove('hidden');
+        switchResultView('customer'); // まずはお客様提示用画面を表示
+
+      } catch (err) {
+        alert("照会エラー: " + err.message);
+      } finally {
+        document.getElementById('loadingIndicator').classList.add('hidden');
+        document.getElementById('submitBtn').disabled = false;
+      }
+    }
+
+    // --- 結果データを業務UIへレンダリング ---
+    function renderResults(data, groundingChunks) {
+      const products = data.products || [];
+      
+      // 折りたたみバーの要約テキスト更新
+      const summaryNames = products.map(p => `${p.maker || ''} ${p.modelNumber || p.productName}`).join(' ／ ');
+      document.getElementById('collapsedSummaryText').textContent = `照会中: ${summaryNames}`;
+
+      // 1. お客様用：製品カード描画
+      const cardsContainer = document.getElementById('customerProductCards');
+      cardsContainer.className = products.length === 1 
+        ? "grid grid-cols-1 gap-3" 
+        : products.length === 2 
+          ? "grid grid-cols-1 md:grid-cols-2 gap-3"
+          : "grid grid-cols-1 md:grid-cols-3 gap-3";
+
+      cardsContainer.innerHTML = products.map((p, i) => `
+        <div class="bg-white rounded-lg shadow-sm border border-slate-200 p-4 flex flex-col justify-between">
+          <div>
+            <div class="flex justify-between items-start mb-1.5">
+              <span class="text-[11px] font-bold bg-slate-900 text-white px-2 py-0.5 rounded">製品 ${i + 1}</span>
+              <span class="text-xs font-bold text-slate-500">${escapeHtml(p.maker || '')}</span>
+            </div>
+            <h3 class="scalable-title font-bold text-slate-900 mb-0.5">${escapeHtml(p.modelNumber || '')}</h3>
+            <p class="text-xs text-slate-600 font-medium mb-2">${escapeHtml(p.productName || '')}</p>
+            <p class="text-xs bg-slate-50 text-slate-800 p-2 rounded border border-slate-100 mb-3 font-medium">${escapeHtml(p.summary || '')}</p>
+            <ul class="space-y-1.5 mb-3 scalable-text">
+              ${(p.keyPoints || []).map(pt => `
+                <li class="flex items-start space-x-1.5 text-slate-700">
+                  <span class="text-blue-700 font-bold mt-0.5">▪</span>
+                  <span>${escapeHtml(pt)}</span>
+                </li>
+              `).join('')}
+            </ul>
+          </div>
+          <div class="pt-2.5 border-t border-slate-100 text-xs">
+            <span class="font-bold text-blue-800">適した用途：</span>
+            <span class="text-slate-700">${escapeHtml(p.recommendedFor || '')}</span>
+          </div>
+        </div>
+      `).join('');
+
+      // 2. お客様用：比較マトリクス表の描画
+      const table = document.getElementById('comparisonMatrixTable');
+      const headers = data.comparisonTable?.headers || [];
+      const rows = data.comparisonTable?.rows || [];
+      if (headers.length > 0 && rows.length > 0) {
+        table.innerHTML = `
+          <thead>
+            <tr class="bg-slate-100 border-b border-slate-200 text-slate-700">
+              ${headers.map((h, i) => `
+                <th class="p-3 font-bold ${i === 0 ? 'w-32 bg-slate-100 sticky left-0 z-10 border-r border-slate-200' : 'min-w-[160px]'}">${escapeHtml(h)}</th>
+              `).join('')}
+            </tr>
+          </thead>
+          <tbody class="divide-y divide-slate-200">
+            ${rows.map(row => `
+              <tr class="hover:bg-slate-50/80">
+                ${row.map((cell, i) => `
+                  <td class="p-3 align-top ${i === 0 ? 'font-bold text-slate-700 bg-slate-50/90 sticky left-0 z-10 border-r border-slate-200' : 'text-slate-800'}">${escapeHtml(cell)}</td>
+                `).join('')}
+              </tr>
+            `).join('')}
+          </tbody>
+        `;
+      }
+
+      // 3. お客様用：違い・選び方の目安
+      const diffs = data.keyDifferences || [];
+      document.getElementById('customerKeyDifferences').innerHTML = diffs.map(d => `
+        <div class="bg-slate-50 p-3 rounded border-l-4 border-blue-700">
+          <div class="font-bold text-slate-900 mb-0.5">${escapeHtml(d.title || '')}</div>
+          <div class="text-slate-700">${escapeHtml(d.detail || '')}</div>
+        </div>
+      `).join('');
+
+      // 4. スタッフ専用ビューの描画
+      const guide = data.staffGuide || {};
+      document.getElementById('staffHearingList').innerHTML = (guide.hearingQuestions || []).map(q => `
+        <li>${escapeHtml(q)}</li>
+      `).join('');
+
+      document.getElementById('staffPitchList').innerHTML = products.map((p, i) => `
+        <div class="bg-slate-50 p-3 rounded border border-slate-200">
+          <div class="text-xs font-bold text-slate-600 mb-1">【製品 ${i + 1}】${escapeHtml(p.maker || '')} ${escapeHtml(p.modelNumber || '')}</div>
+          <div class="text-slate-900 font-medium">「${escapeHtml(p.staffPitch || '')}」</div>
+        </div>
+      `).join('');
+
+      document.getElementById('staffObjectionList').innerHTML = (guide.objectionHandling || []).map(obj => `
+        <div class="border border-slate-200 rounded p-3 bg-slate-50/50">
+          <div class="text-xs font-bold text-amber-800 mb-1">懸念：${escapeHtml(obj.concern || '')}</div>
+          <div class="text-slate-800">→ <span class="font-medium">${escapeHtml(obj.rebuttal || '')}</span></div>
+        </div>
+      `).join('');
+
+      document.getElementById('staffCrossSellList').innerHTML = (guide.crossSell || []).map(cs => `
+        <div class="border border-emerald-200 bg-emerald-50/30 rounded p-3">
+          <div class="font-bold text-emerald-950 text-xs mb-1">＋ ${escapeHtml(cs.item || '')}</div>
+          <div class="text-slate-700 text-xs">${escapeHtml(cs.reason || '')}</div>
+        </div>
+      `).join('');
+
+      document.getElementById('staffClosingBox').innerHTML = guide.closingAdvice 
+        ? `<span class="text-xs font-bold bg-slate-800 text-white px-2 py-0.5 rounded mr-1.5">決め手の一言</span><span>「${escapeHtml(guide.closingAdvice)}」</span>`
+        : '';
+
+      // 5. 検索ソース（ファクトチェック用URL）の描画
+      const sourcesContainer = document.getElementById('groundingSourcesList');
+      const webSources = groundingChunks.filter(c => c.web && c.web.uri);
+      if (webSources.length > 0) {
+        sourcesContainer.innerHTML = webSources.map(c => `
+          <a href="${c.web.uri}" target="_blank" rel="noopener noreferrer" 
+            class="bg-white hover:bg-blue-50 text-blue-700 border border-slate-300 px-2.5 py-1 rounded text-[11px] truncate max-w-[240px] transition">
+            ${escapeHtml(c.web.title || c.web.uri)}
+          </a>
+        `).join('');
+      } else {
+        sourcesContainer.innerHTML = `<span class="text-slate-400">Web検索検証済み</span>`;
+      }
+    }
+
+    function escapeHtml(str) {
+      return String(str)
+        .replace(/&/g, "&amp;")
+        .replace(/</g, "&lt;")
+        .replace(/>/g, "&gt;")
+        .replace(/"/g, "&quot;")
+        .replace(/'/g, "&#039;");
+    }
+  </script>
+</body>
+</html>
